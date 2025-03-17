@@ -1,31 +1,3 @@
-// Константы для оружия
-const WEAPONS = {
-    laser: {
-        name: 'Лазер',
-        icon: '⚔️',
-        price: 1000,
-        cooldown: 1000, // 1 секунда
-        damage: 10,
-        range: 600
-    },
-    bombs: {
-        name: 'Бомбы',
-        icon: '💣',
-        price: 2000,
-        cooldown: 3000, // 3 секунды
-        damage: 20,
-        range: 200
-    },
-    missile: {
-        name: 'Ракеты',
-        icon: '🚀',
-        price: 3000,
-        cooldown: 5000, // 5 секунд
-        damage: 35,
-        range: 800
-    }
-};
-
 import NetworkManager from './network.js';
 class Game {
     constructor(initialState) {
@@ -40,32 +12,6 @@ class Game {
         document.addEventListener('visibilitychange', () => {
             this.isPageVisible = !document.hidden;
         });
-
-        // Инициализируем корабль игрока
-        this.playerShip = {
-            x: 4800,
-            y: 4800,
-            rotation: 0,
-            speed: 0,
-            maxSpeed: 5,
-            shield: 100,
-            armor: 50,
-            energy: 100,
-            weapons: {
-                laser: false,
-                bombs: false,
-                missile: false
-            },
-            cargoSlots: {
-                slot1: { unlocked: true, amount: 0 },
-                slot2: { unlocked: false, amount: 0 },
-                slot3: { unlocked: false, amount: 0 },
-                slot4: { unlocked: false, amount: 0 },
-                slot5: { unlocked: false, amount: 0 }
-            },
-            lastShotTime: {},
-            destroyed: false
-        };
 
         this.canvas = document.getElementById('gameCanvas');
         if (!this.canvas) {
@@ -117,11 +63,41 @@ class Game {
         this.gameState = {
             players: new Map(),
             planets: new Map(),
+            projectiles: new Set(),
             resources: {
                 credits: initialState?.resources?.credits || 1000
+            }
+        };
+
+        // Инициализация корабля игрока
+        this.playerShip = {
+            x: this.worldSize.width / 2,
+            y: this.worldSize.height / 2,
+            rotation: 0,
+            speed: 0,
+            maxSpeed: 5,
+            acceleration: 0.1,
+            deceleration: 0.05,
+            shield: 100,
+            armor: 0,
+            immortalArmor: false,
+            energy: 100,
+            destroyed: false,
+            target: null,
+            weapons: {
+                laser: false,
+                bombs: false,
+                missile: false
             },
-            currentPlanet: null,
-            projectiles: [] // Добавляем инициализацию projectiles как массив
+            currentWeapon: null,
+            cargoSlots: {
+                slot1: { unlocked: true, amount: 0 },
+                slot2: { unlocked: false, amount: 0 },
+                slot3: { unlocked: false, amount: 0 },
+                slot4: { unlocked: false, amount: 0 },
+                slot5: { unlocked: false, amount: 0 }
+            },
+            maxCargoPerSlot: 100
         };
 
         // Инициализация управления
@@ -218,9 +194,6 @@ class Game {
         this.network.socket.on('purchase:failed', (data) => {
             this.showNotification(data.message);
         });
-
-        // Инициализация массива снарядов
-        this.projectiles = [];
     }
 
     resizeCanvas() {
@@ -869,46 +842,77 @@ class Game {
     }
 
     update(deltaTime) {
-        if (!this.playerShip) return;
+        if (!this.gameState || !this.playerShip) return;
 
-        // Обновляем состояние корабля игрока
         this.updatePlayerShip(deltaTime);
-
-        // Обновляем состояние снарядов
+        
+        // Обновляем снаряды
         this.updateProjectiles();
-
+        
         // Обновляем ресурсы
         this.updateResources(deltaTime);
-
+        
         // Обновляем интерфейс
         this.updateUI();
-
+        
         // Обновляем мини-карту
         this.updateMinimap();
-
-        // Обрабатываем очередь взрывов
-        this.processExplosionQueue();
     }
 
     updatePlayerShip(deltaTime) {
-        if (!this.playerShip || this.playerShip.destroyed) return;
+        if (this.playerShip.destroyed) return;
 
-        // Обновляем позицию корабля
+        // Регулировка скорости с помощью клавиш
+        if (this.keys.w) {
+            this.playerShip.speed = Math.min(this.playerShip.speed + this.playerShip.acceleration, this.playerShip.maxSpeed);
+        } else if (this.keys.s) {
+            this.playerShip.speed = Math.max(0, this.playerShip.speed - this.playerShip.deceleration);
+        }
+
+        // Поворот корабля
+        if (this.keys.a) {
+            this.playerShip.rotation -= 0.05;
+        }
+        if (this.keys.d) {
+            this.playerShip.rotation += 0.05;
+        }
+
+        // Движение к цели или по клавишам
+        let dx = 0;
+        let dy = 0;
+
         if (this.playerShip.target) {
-            const dx = this.playerShip.target.x - this.playerShip.x;
-            const dy = this.playerShip.target.y - this.playerShip.y;
+            dx = this.playerShip.target.x - this.playerShip.x;
+            dy = this.playerShip.target.y - this.playerShip.y;
             const distance = Math.sqrt(dx * dx + dy * dy);
 
             if (distance > 5) {
-                this.playerShip.x += (dx / distance) * this.playerShip.speed;
-                this.playerShip.y += (dy / distance) * this.playerShip.speed;
+                // Плавное изменение скорости
+                const targetSpeed = Math.min(distance / 50, this.playerShip.maxSpeed);
+                this.playerShip.speed = this.playerShip.speed * 0.95 + targetSpeed * 0.05;
             } else {
-                this.playerShip.target = null;
                 this.playerShip.speed = 0;
+                this.playerShip.target = null;
             }
         }
 
-        // Центрируем камеру на корабле
+        // Применяем движение
+        if (this.playerShip.speed > 0) {
+            const nextX = this.playerShip.x + Math.cos(this.playerShip.rotation) * this.playerShip.speed;
+            const nextY = this.playerShip.y + Math.sin(this.playerShip.rotation) * this.playerShip.speed;
+
+            // Проверяем границы мира
+            this.playerShip.x = Math.max(0, Math.min(nextX, this.worldSize.width));
+            this.playerShip.y = Math.max(0, Math.min(nextY, this.worldSize.height));
+
+            // Если достигли границы мира, останавливаемся
+            if (this.playerShip.x !== nextX || this.playerShip.y !== nextY) {
+                this.playerShip.speed = 0;
+                this.playerShip.target = null;
+            }
+        }
+
+        // Обновляем viewport
         this.centerViewportOnShip();
     }
 
@@ -927,12 +931,12 @@ class Game {
 
         // Обновление ресурсов базовой планеты игрока
         const playerBase = Array.from(this.gameState.planets.values()).find(p => p.isPlayerBase);
-        if (playerBase && playerBase.buildings) {
+        if (playerBase) {
             // Производство ресурсов зданиями
             const production = {
-                minerals: (playerBase.buildings.mines || 0) * 2,
-                food: (playerBase.buildings.farms || 0) * 2,
-                energy: (playerBase.buildings.powerPlants || 0) * 2
+                minerals: playerBase.buildings.mines * 2,
+                food: playerBase.buildings.farms * 2,
+                energy: playerBase.buildings.powerPlants * 2
             };
 
             Object.entries(production).forEach(([resource, amount]) => {
@@ -950,66 +954,85 @@ class Game {
     }
 
     updateUI() {
-        // Обновление информации о щите
+        // Обновляем информацию о щите
         const shieldElement = document.getElementById('shield');
-        if (shieldElement && this.playerShip && typeof this.playerShip.shield === 'number') {
-            shieldElement.textContent = `Щит: ${Math.round(this.playerShip.shield)}%`;
-            
-            // Обновляем индикатор щита
-            const shieldBar = document.getElementById('shieldBar');
-            if (shieldBar) {
-                shieldBar.style.width = `${Math.max(0, Math.min(100, this.playerShip.shield))}%`;
-            }
+        if (shieldElement && this.playerShip) {
+            shieldElement.textContent = `Щит: ${Math.floor(this.playerShip.shield)}%`;
         }
 
-        // Обновление информации о кредитах
+        // Обновляем информацию о кредитах
         const creditsElement = document.getElementById('credits');
         if (creditsElement && this.gameState && this.gameState.resources) {
             creditsElement.textContent = `Кредиты: ${this.gameState.resources.credits}`;
         }
 
-        // Обновление информации о грузе
+        // Обновляем информацию о грузовых отсеках
         const cargoElement = document.getElementById('cargo');
         if (cargoElement && this.playerShip && this.playerShip.cargoSlots) {
-            const totalCargo = Object.values(this.playerShip.cargoSlots)
-                .filter(slot => slot.unlocked)
-                .reduce((sum, slot) => sum + (slot.amount || 0), 0);
-            const totalCapacity = Object.values(this.playerShip.cargoSlots)
-                .filter(slot => slot.unlocked)
-                .reduce((sum, slot) => sum + 100, 0);
+            let totalCargo = 0;
+            let totalCapacity = 0;
+            let unlockedSlots = 0;
+
+            Object.values(this.playerShip.cargoSlots).forEach(slot => {
+                if (slot.unlocked) {
+                    totalCargo += slot.amount || 0;
+                    totalCapacity += 100;
+                    unlockedSlots++;
+                }
+            });
+
             cargoElement.textContent = `Груз: ${totalCargo}/${totalCapacity}`;
         }
 
-        // Обновление информации об оружии
-        const weaponsElement = document.getElementById('weapons');
-        if (weaponsElement && this.playerShip && this.playerShip.weapons) {
-            weaponsElement.innerHTML = '';
-            Object.entries(this.playerShip.weapons).forEach(([type, isUnlocked]) => {
-                if (WEAPONS[type]) {
-                    const weaponDiv = document.createElement('div');
-                    weaponDiv.className = `weapon-item ${isUnlocked ? 'active' : ''}`;
-                    weaponDiv.innerHTML = `
-                        <span class="weapon-name">${WEAPONS[type].name}</span>
-                        <span class="weapon-status">${isUnlocked ? 'Установлен' : 'Не установлен'}</span>
-                    `;
-                    weaponsElement.appendChild(weaponDiv);
+        // Обновляем инвентарь оружия
+        const weaponsContainer = document.getElementById('weapons');
+        if (weaponsContainer && this.playerShip && this.playerShip.weapons) {
+            weaponsContainer.innerHTML = ''; // Очищаем контейнер перед обновлением
+            
+            const weaponsInventory = document.createElement('div');
+            weaponsInventory.className = 'weapons-inventory';
+
+            Object.entries(this.playerShip.weapons).forEach(([weaponType, isUnlocked]) => {
+                if (!WEAPONS[weaponType]) return; // Пропускаем, если тип оружия не определен
+
+                const weaponSlot = document.createElement('div');
+                weaponSlot.className = `weapon-slot ${isUnlocked ? 'unlocked' : 'locked'}`;
+                weaponSlot.innerHTML = `
+                    <div class="weapon-icon">${WEAPONS[weaponType].icon || '⚔️'}</div>
+                    <div class="weapon-name">${WEAPONS[weaponType].name}</div>
+                    ${!isUnlocked ? `<div class="weapon-price">${WEAPONS[weaponType].price} кредитов</div>` : ''}
+                `;
+
+                if (isUnlocked) {
+                    weaponSlot.addEventListener('click', () => {
+                        this.playerShip.currentWeapon = weaponType;
+                        this.updateUI();
+                    });
                 }
+
+                weaponsInventory.appendChild(weaponSlot);
             });
+
+            weaponsContainer.appendChild(weaponsInventory);
         }
 
-        // Обновление информации о перезарядке
+        // Обновляем информацию о перезарядке
         const cooldownElement = document.getElementById('cooldown');
-        if (cooldownElement && this.playerShip && this.playerShip.currentWeapon) {
-            const weapon = WEAPONS[this.playerShip.currentWeapon];
-            const lastShotTime = this.playerShip.lastShotTime[this.playerShip.currentWeapon] || 0;
-            const cooldown = weapon.cooldown;
-            const now = Date.now();
-            const remainingTime = Math.max(0, cooldown - (now - lastShotTime));
-            
-            if (remainingTime > 0) {
-                cooldownElement.textContent = `Перезарядка: ${Math.ceil(remainingTime / 1000)}с`;
+        if (cooldownElement && this.playerShip) {
+            const selectedWeapon = this.playerShip.currentWeapon;
+            if (selectedWeapon && this.playerShip.weapons[selectedWeapon]) {
+                const lastShotTime = this.playerShip.lastShotTime?.[selectedWeapon] || 0;
+                const cooldown = WEAPONS[selectedWeapon]?.cooldown || 1000;
+                const now = Date.now();
+                const remainingTime = Math.max(0, cooldown - (now - lastShotTime));
+                
+                if (remainingTime > 0) {
+                    cooldownElement.textContent = `Перезарядка: ${Math.ceil(remainingTime / 1000)}с`;
+                } else {
+                    cooldownElement.textContent = 'Готово к стрельбе';
+                }
             } else {
-                cooldownElement.textContent = 'Готово к стрельбе';
+                cooldownElement.textContent = 'Оружие не выбрано';
             }
         }
     }
@@ -1024,9 +1047,9 @@ class Game {
     }
 
     render() {
-        if (!this.ctx) return;
+        if (!this.ctx || !this.gameState) return;
 
-        // Очищаем canvas
+        // Очищаем канвас
         this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
 
         // Рисуем сетку
@@ -1035,25 +1058,12 @@ class Game {
         // Рисуем звезды
         this.renderStars();
 
-        // Рисуем планеты
-        this.renderPlanets();
-
-        // Рисуем снаряды
-        this.renderProjectiles();
-
-        // Рисуем взрывы
-        this.renderExplosions();
-
-        // Рисуем ботов
-        this.renderBots();
-
-        // Рисуем других игроков
-        if (this.gameState.players) {
-            this.gameState.players.forEach((player, id) => {
-                if (id !== this.network.socket.id) {
-                    this.renderPlayer(player);
-                }
-            });
+        // Проверяем наличие планет перед отрисовкой
+        if (this.gameState.planets && this.gameState.planets.size > 0) {
+            this.renderPlanets();
+        } else {
+            console.warn('No planets to render');
+            this.initPlanets(); // Переинициализируем планеты если их нет
         }
 
         // Рисуем корабль игрока
@@ -1061,8 +1071,30 @@ class Game {
             this.renderPlayerShip();
         }
 
+        // Рисуем ботов и снаряды
+        if (this.bots && this.bots.length > 0) {
+            this.renderBots();
+        }
+        if (this.gameState.projectiles && this.gameState.projectiles.size > 0) {
+            this.renderProjectiles();
+        }
+
         // Обновляем мини-карту
         this.updateMinimap();
+
+        // Рендерим других игроков
+        if (this.gameState.players) {
+            this.gameState.players.forEach(player => {
+                if (player.id !== this.network?.socket?.id) {
+                    this.renderPlayer(player);
+                }
+            });
+        }
+
+        // Рендерим взрывы
+        if (this.explosions && this.explosions.length > 0) {
+            this.renderExplosions();
+        }
     }
 
     renderGrid() {
@@ -1317,7 +1349,11 @@ class Game {
 
     initPlanets() {
         // Проверяем, не инициализированы ли уже планеты
-        if (this.gameState.planets && this.gameState.planets.size > 0) {
+        if (!this.gameState.planets) {
+            this.gameState.planets = new Map();
+        }
+
+        if (this.gameState.planets.size > 0) {
             console.log('Planets already initialized');
             return;
         }
@@ -1359,60 +1395,9 @@ class Game {
                     farms: 0,
                     powerPlants: 0
                 }
-            },
-            {
-                name: "Delta",
-                type: "Ледяная",
-                x: 4800,
-                y: 1200,
-                radius: 55,
-                color: "#90CAF9",
-                resources: Math.floor(Math.random() * 1500) + 800,
-                regeneration: 1.5
-            },
-            {
-                name: "Epsilon",
-                type: "Вулканическая",
-                x: 7200,
-                y: 3600,
-                radius: 60,
-                color: "#FF5722",
-                resources: Math.floor(Math.random() * 2500) + 1000,
-                regeneration: 2.5
-            },
-            {
-                name: "Gamma",
-                type: "Пустынная",
-                x: 2400,
-                y: 6000,
-                radius: 45,
-                color: "#FFC107",
-                resources: Math.floor(Math.random() * 1200) + 600,
-                regeneration: 1.2
-            },
-            {
-                name: "Zeta",
-                type: "Океаническая",
-                x: 8400,
-                y: 7200,
-                radius: 70,
-                color: "#00BCD4",
-                resources: Math.floor(Math.random() * 1800) + 900,
-                regeneration: 1.8
-            },
-            {
-                name: "Eta",
-                type: "Горная",
-                x: 6000,
-                y: 8400,
-                radius: 50,
-                color: "#795548",
-                resources: Math.floor(Math.random() * 3000) + 1500,
-                regeneration: 3
             }
         ];
 
-        this.gameState.planets = new Map();
         planetsData.forEach(planet => {
             this.gameState.planets.set(planet.name, planet);
         });
@@ -1454,26 +1439,14 @@ class Game {
 
     // Система оружия
     createProjectile(x, y, rotation, type, isBot = false) {
+        if (!this.projectiles) {
+            this.projectiles = [];
+        }
+
         // Проверяем, есть ли у игрока это оружие
         if (!isBot && !this.playerShip.weapons[type]) {
             this.showNotification('Это оружие не куплено!');
             return;
-        }
-
-        // Проверяем перезарядку для выстрелов игрока
-        if (!isBot) {
-            const lastShotTime = this.playerShip.lastShotTime[type] || 0;
-            const cooldown = WEAPONS[type].cooldown;
-            const now = Date.now();
-            
-            if (now - lastShotTime < cooldown) {
-                const remainingTime = Math.ceil((cooldown - (now - lastShotTime)) / 1000);
-                this.showNotification(`Перезарядка: ${remainingTime}с`);
-                return;
-            }
-            
-            // Обновляем время последнего выстрела
-            this.playerShip.lastShotTime[type] = now;
         }
 
         // Настройки урона для разных типов оружия
@@ -1923,10 +1896,7 @@ class Game {
     }
 
     addProjectile(projectile) {
-        if (!this.gameState.projectiles) {
-            this.gameState.projectiles = [];
-        }
-        this.gameState.projectiles.push(projectile);
+        this.gameState.projectiles.add(projectile);
     }
 
     updatePlanet(planetData) {
@@ -2084,7 +2054,6 @@ class Game {
                     missile: false
                 },
                 currentWeapon: null,
-                lastShotTime: {}, // Добавляем объект для хранения времени последнего выстрела
                 cargoSlots: {
                     slot1: { unlocked: true, amount: 0 },
                     slot2: { unlocked: false, amount: 0 },
