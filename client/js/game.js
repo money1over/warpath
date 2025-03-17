@@ -1121,12 +1121,12 @@ class Game {
         const shieldElement = document.getElementById('shield');
         if (shieldElement && this.playerShip && typeof this.playerShip.shield === 'number') {
             shieldElement.textContent = `Щит: ${Math.round(this.playerShip.shield)}%`;
-        } else {
-            console.warn('Не удалось обновить информацию о щите:', {
-                shieldElement: !!shieldElement,
-                playerShip: this.playerShip,
-                shield: this.playerShip?.shield
-            });
+            
+            // Обновляем индикатор щита
+            const shieldBar = document.getElementById('shieldBar');
+            if (shieldBar) {
+                shieldBar.style.width = `${Math.max(0, Math.min(100, this.playerShip.shield))}%`;
+            }
         }
 
         // Обновление информации о кредитах
@@ -1140,7 +1140,7 @@ class Game {
         if (cargoElement && this.playerShip && this.playerShip.cargoSlots) {
             const totalCargo = Object.values(this.playerShip.cargoSlots)
                 .filter(slot => slot.unlocked)
-                .reduce((sum, slot) => sum + slot.amount, 0);
+                .reduce((sum, slot) => sum + (slot.amount || 0), 0);
             const totalCapacity = Object.values(this.playerShip.cargoSlots)
                 .filter(slot => slot.unlocked)
                 .reduce((sum, slot) => sum + 100, 0);
@@ -1151,20 +1151,29 @@ class Game {
         const weaponsElement = document.getElementById('weapons');
         if (weaponsElement && this.playerShip && this.playerShip.weapons) {
             const weapons = this.playerShip.weapons;
-            weaponsElement.innerHTML = `
-                <div class="weapon-item ${weapons.laser ? 'active' : ''}">
-                    <span class="weapon-name">Лазер</span>
-                    <span class="weapon-status">${weapons.laser ? 'Установлен' : 'Не установлен'}</span>
-                </div>
-                <div class="weapon-item ${weapons.bombs ? 'active' : ''}">
-                    <span class="weapon-name">Бомбы</span>
-                    <span class="weapon-status">${weapons.bombs ? 'Установлен' : 'Не установлен'}</span>
-                </div>
-                <div class="weapon-item ${weapons.missile ? 'active' : ''}">
-                    <span class="weapon-name">Ракеты</span>
-                    <span class="weapon-status">${weapons.missile ? 'Установлен' : 'Не установлен'}</span>
-                </div>
-            `;
+            weaponsElement.innerHTML = Object.entries(weapons)
+                .map(([type, isUnlocked]) => `
+                    <div class="weapon-item ${isUnlocked ? 'active' : ''}">
+                        <span class="weapon-name">${WEAPONS[type].name}</span>
+                        <span class="weapon-status">${isUnlocked ? 'Установлен' : 'Не установлен'}</span>
+                    </div>
+                `).join('');
+        }
+
+        // Обновление информации о перезарядке
+        const cooldownElement = document.getElementById('cooldown');
+        if (cooldownElement && this.playerShip && this.playerShip.currentWeapon) {
+            const weapon = WEAPONS[this.playerShip.currentWeapon];
+            const lastShotTime = this.playerShip.lastShotTime[this.playerShip.currentWeapon] || 0;
+            const cooldown = weapon.cooldown;
+            const now = Date.now();
+            const remainingTime = Math.max(0, cooldown - (now - lastShotTime));
+            
+            if (remainingTime > 0) {
+                cooldownElement.textContent = `Перезарядка: ${Math.ceil(remainingTime / 1000)}с`;
+            } else {
+                cooldownElement.textContent = 'Готово к стрельбе';
+            }
         }
     }
 
