@@ -869,213 +869,46 @@ class Game {
     }
 
     update(deltaTime) {
-        if (this.playerShip && !this.playerShip.destroyed) {
-            // Обработка движения с клавиатуры
-            if (this.keys.w || this.keys.s || this.keys.a || this.keys.d) {
-                let dx = 0;
-                let dy = 0;
-                
-                if (this.keys.w) dy -= 5;
-                if (this.keys.s) dy += 5;
-                if (this.keys.a) dx -= 5;
-                if (this.keys.d) dx += 5;
-                
-                if (dx !== 0 || dy !== 0) {
-                    const rotation = Math.atan2(dy, dx);
-                    const speed = 5;
-                    
-                    const nextX = this.playerShip.x + Math.cos(rotation) * speed;
-                    const nextY = this.playerShip.y + Math.sin(rotation) * speed;
-                    
-                    // Проверяем границы мира
-                    this.playerShip.x = Math.max(0, Math.min(nextX, this.worldSize.width));
-                    this.playerShip.y = Math.max(0, Math.min(nextY, this.worldSize.height));
-                    this.playerShip.rotation = rotation;
-                    
-                    // Центрируем камеру на корабле
-                    this.centerViewportOnShip();
-                    
-                    // Отправляем обновление движения на сервер
-                    this.network.sendMove({ x: this.playerShip.x, y: this.playerShip.y }, rotation, speed);
-                }
-            }
+        if (!this.playerShip) return;
 
-            // Обработка движения к цели при клике
-            if (this.targetPosition) {
-                const dx = this.targetPosition.x - this.playerShip.x;
-                const dy = this.targetPosition.y - this.playerShip.y;
-                const distance = Math.sqrt(dx * dx + dy * dy);
-                
-                if (distance > 5) {
-                    const speed = Math.min(5, distance);
-                    const rotation = Math.atan2(dy, dx);
-                    
-                    const nextX = this.playerShip.x + Math.cos(rotation) * speed;
-                    const nextY = this.playerShip.y + Math.sin(rotation) * speed;
-                    
-                    // Проверяем границы мира
-                    this.playerShip.x = Math.max(0, Math.min(nextX, this.worldSize.width));
-                    this.playerShip.y = Math.max(0, Math.min(nextY, this.worldSize.height));
-                    this.playerShip.rotation = rotation;
-                    
-                    // Центрируем камеру на корабле
-                    this.centerViewportOnShip();
-                    
-                    // Отправляем обновление движения на сервер
-                    this.network.sendMove(this.targetPosition, rotation, speed);
-                } else {
-                    this.targetPosition = null;
-                }
-            }
+        // Обновляем состояние корабля игрока
+        this.updatePlayerShip(deltaTime);
 
-            // Обновляем поведение ботов
-            if (this.bots) {
-                this.bots.forEach(bot => {
-                    if (bot.type === 'aggressive') {
-                        // Вычисляем расстояние до игрока
-                        const dx = this.playerShip.x - bot.x;
-                        const dy = this.playerShip.y - bot.y;
-                        const distance = Math.sqrt(dx * dx + dy * dy);
-
-                        // Если игрок в зоне видимости (800 пикселей)
-                        if (distance < 800) {
-                            // Поворачиваемся к игроку
-                            bot.rotation = Math.atan2(dy, dx);
-
-                            // Двигаемся к игроку если он далеко
-                            if (distance > 300) {
-                                const nextX = bot.x + Math.cos(bot.rotation) * bot.speed;
-                                const nextY = bot.y + Math.sin(bot.rotation) * bot.speed;
-                                
-                                // Ограничиваем движение границами мира
-                                bot.x = Math.max(0, Math.min(nextX, this.worldSize.width));
-                                bot.y = Math.max(0, Math.min(nextY, this.worldSize.height));
-                            }
-
-                            // Стреляем если достаточно близко
-                            if (distance < 400 && (!bot.lastShot || Date.now() - bot.lastShot > 2000)) {
-                                this.createProjectile(bot.x, bot.y, bot.rotation, 'laser', true);
-                                bot.lastShot = Date.now();
-                            }
-                        } else {
-                            // Случайное движение если игрок далеко
-                            if (!bot.targetPosition || 
-                                Math.abs(bot.x - bot.targetPosition.x) < 5 && 
-                                Math.abs(bot.y - bot.targetPosition.y) < 5) {
-                                
-                                bot.targetPosition = {
-                                    x: Math.random() * this.worldSize.width,
-                                    y: Math.random() * this.worldSize.height
-                                };
-                                bot.rotation = Math.atan2(
-                                    bot.targetPosition.y - bot.y,
-                                    bot.targetPosition.x - bot.x
-                                );
-                            }
-
-                            // Двигаемся к случайной точке
-                            const nextX = bot.x + Math.cos(bot.rotation) * (bot.speed * 0.5);
-                            const nextY = bot.y + Math.sin(bot.rotation) * (bot.speed * 0.5);
-                            
-                            // Ограничиваем движение границами мира
-                            bot.x = Math.max(0, Math.min(nextX, this.worldSize.width));
-                            bot.y = Math.max(0, Math.min(nextY, this.worldSize.height));
-                        }
-                    } else {
-                        // Мирные боты всегда двигаются случайно
-                        if (!bot.targetPosition || 
-                            Math.abs(bot.x - bot.targetPosition.x) < 5 && 
-                            Math.abs(bot.y - bot.targetPosition.y) < 5) {
-                            
-                            bot.targetPosition = {
-                                x: Math.random() * this.worldSize.width,
-                                y: Math.random() * this.worldSize.height
-                            };
-                            bot.rotation = Math.atan2(
-                                bot.targetPosition.y - bot.y,
-                                bot.targetPosition.x - bot.x
-                            );
-                        }
-
-                        // Двигаемся к случайной точке
-                        const nextX = bot.x + Math.cos(bot.rotation) * (bot.speed * 0.5);
-                        const nextY = bot.y + Math.sin(bot.rotation) * (bot.speed * 0.5);
-                        
-                        // Ограничиваем движение границами мира
-                        bot.x = Math.max(0, Math.min(nextX, this.worldSize.width));
-                        bot.y = Math.max(0, Math.min(nextY, this.worldSize.height));
-                    }
-                });
-            }
-        }
-
-        // Обновляем снаряды
+        // Обновляем состояние снарядов
         this.updateProjectiles();
-        
+
         // Обновляем ресурсы
         this.updateResources(deltaTime);
-        
+
         // Обновляем интерфейс
         this.updateUI();
-        
+
         // Обновляем мини-карту
         this.updateMinimap();
+
+        // Обрабатываем очередь взрывов
+        this.processExplosionQueue();
     }
 
     updatePlayerShip(deltaTime) {
-        if (this.playerShip.destroyed) return;
+        if (!this.playerShip || this.playerShip.destroyed) return;
 
-        // Регулировка скорости с помощью клавиш
-        if (this.keys.w) {
-            this.playerShip.speed = Math.min(this.playerShip.speed + this.playerShip.acceleration, this.playerShip.maxSpeed);
-        } else if (this.keys.s) {
-            this.playerShip.speed = Math.max(0, this.playerShip.speed - this.playerShip.deceleration);
-        }
-
-        // Поворот корабля
-        if (this.keys.a) {
-            this.playerShip.rotation -= 0.05;
-        }
-        if (this.keys.d) {
-            this.playerShip.rotation += 0.05;
-        }
-
-        // Движение к цели или по клавишам
-        let dx = 0;
-        let dy = 0;
-
+        // Обновляем позицию корабля
         if (this.playerShip.target) {
-            dx = this.playerShip.target.x - this.playerShip.x;
-            dy = this.playerShip.target.y - this.playerShip.y;
+            const dx = this.playerShip.target.x - this.playerShip.x;
+            const dy = this.playerShip.target.y - this.playerShip.y;
             const distance = Math.sqrt(dx * dx + dy * dy);
 
             if (distance > 5) {
-                // Плавное изменение скорости
-                const targetSpeed = Math.min(distance / 50, this.playerShip.maxSpeed);
-                this.playerShip.speed = this.playerShip.speed * 0.95 + targetSpeed * 0.05;
+                this.playerShip.x += (dx / distance) * this.playerShip.speed;
+                this.playerShip.y += (dy / distance) * this.playerShip.speed;
             } else {
-                this.playerShip.speed = 0;
                 this.playerShip.target = null;
+                this.playerShip.speed = 0;
             }
         }
 
-        // Применяем движение
-        if (this.playerShip.speed > 0) {
-            const nextX = this.playerShip.x + Math.cos(this.playerShip.rotation) * this.playerShip.speed;
-            const nextY = this.playerShip.y + Math.sin(this.playerShip.rotation) * this.playerShip.speed;
-
-            // Проверяем границы мира
-            this.playerShip.x = Math.max(0, Math.min(nextX, this.worldSize.width));
-            this.playerShip.y = Math.max(0, Math.min(nextY, this.worldSize.height));
-
-            // Если достигли границы мира, останавливаемся
-            if (this.playerShip.x !== nextX || this.playerShip.y !== nextY) {
-                this.playerShip.speed = 0;
-                this.playerShip.target = null;
-            }
-        }
-
-        // Обновляем viewport
+        // Центрируем камеру на корабле
         this.centerViewportOnShip();
     }
 
@@ -1150,14 +983,18 @@ class Game {
         // Обновление информации об оружии
         const weaponsElement = document.getElementById('weapons');
         if (weaponsElement && this.playerShip && this.playerShip.weapons) {
-            const weapons = this.playerShip.weapons;
-            weaponsElement.innerHTML = Object.entries(weapons)
-                .map(([type, isUnlocked]) => `
-                    <div class="weapon-item ${isUnlocked ? 'active' : ''}">
+            weaponsElement.innerHTML = '';
+            Object.entries(this.playerShip.weapons).forEach(([type, isUnlocked]) => {
+                if (WEAPONS[type]) {
+                    const weaponDiv = document.createElement('div');
+                    weaponDiv.className = `weapon-item ${isUnlocked ? 'active' : ''}`;
+                    weaponDiv.innerHTML = `
                         <span class="weapon-name">${WEAPONS[type].name}</span>
                         <span class="weapon-status">${isUnlocked ? 'Установлен' : 'Не установлен'}</span>
-                    </div>
-                `).join('');
+                    `;
+                    weaponsElement.appendChild(weaponDiv);
+                }
+            });
         }
 
         // Обновление информации о перезарядке
@@ -1189,7 +1026,7 @@ class Game {
     render() {
         if (!this.ctx) return;
 
-        // Очищаем канвас
+        // Очищаем canvas
         this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
 
         // Рисуем сетку
@@ -1198,52 +1035,34 @@ class Game {
         // Рисуем звезды
         this.renderStars();
 
-        // Проверяем наличие планет перед отрисовкой
-        if (this.gameState.planets && this.gameState.planets.size > 0) {
-            this.renderPlanets();
-        } else {
-            console.warn('No planets to render');
-            this.initPlanets(); // Переинициализируем планеты если их нет
-        }
+        // Рисуем планеты
+        this.renderPlanets();
 
-        // Рисуем корабль игрока
-        if (!this.playerShip.destroyed) {
-            this.renderPlayerShip();
-        }
+        // Рисуем снаряды
+        this.renderProjectiles();
 
-        // Рисуем ботов и снаряды
-        if (this.bots && this.bots.length > 0) {
-            this.renderBots();
-        }
-        if (this.projectiles && this.projectiles.length > 0) {
-            this.renderProjectiles();
-        }
+        // Рисуем взрывы
+        this.renderExplosions();
 
-        // Обновляем мини-карту
-        this.updateMinimap();
+        // Рисуем ботов
+        this.renderBots();
 
-        // Рендерим других игроков
+        // Рисуем других игроков
         if (this.gameState.players) {
-            this.gameState.players.forEach(player => {
-                if (player.id !== this.network.socket.id) {
+            this.gameState.players.forEach((player, id) => {
+                if (id !== this.network.socket.id) {
                     this.renderPlayer(player);
                 }
             });
         }
 
-        // Рендерим снаряды
-        if (this.gameState.projectiles && Array.isArray(this.gameState.projectiles)) {
-            this.gameState.projectiles.forEach(projectile => {
-                if (!projectile) return;
-                const screenPos = this.worldToScreen(projectile.x, projectile.y);
-                this.ctx.beginPath();
-                this.ctx.arc(screenPos.x, screenPos.y, 2, 0, Math.PI * 2);
-                this.ctx.fillStyle = projectile.type === 'laser' ? '#ff0000' : '#ffff00';
-                this.ctx.fill();
-            });
+        // Рисуем корабль игрока
+        if (this.playerShip && !this.playerShip.destroyed) {
+            this.renderPlayerShip();
         }
 
-        this.renderExplosions();
+        // Обновляем мини-карту
+        this.updateMinimap();
     }
 
     renderGrid() {
