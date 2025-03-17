@@ -1,0 +1,1124 @@
+body {
+    margin: 0;
+    padding: 0;
+    background: #000;
+    font-family: 'Courier New', monospace;
+    color: white;
+    overflow: hidden;
+}
+
+#gameContainer {
+    position: relative;
+    width: 100vw;
+    height: 100vh;
+}
+
+#gameCanvas {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    z-index: 1;
+}
+
+#leftPanel {
+    position: fixed;
+    left: 20px;
+    top: 20px;
+    background: rgba(0, 0, 0, 0.7);
+    padding: 15px;
+    border-radius: 10px;
+    color: white;
+    font-family: 'Arial', sans-serif;
+    z-index: 1000;
+    width: 200px !important;
+    max-width: 200px;
+}
+
+#resources {
+    font-size: 14px;
+    line-height: 1.5;
+}
+
+#resources > div {
+    margin-bottom: 8px;
+    padding: 8px;
+    background: rgba(255, 255, 255, 0.1);
+    border-radius: 5px;
+    width: 100%;
+    box-sizing: border-box;
+    overflow: hidden;
+}
+
+.slots-info {
+    margin-top: 5px;
+    font-size: 12px;
+}
+
+.slot-info {
+    display: flex;
+    justify-content: space-between;
+    padding: 4px 8px;
+    margin: 2px 0;
+    border-radius: 3px;
+    background: rgba(0, 0, 0, 0.2);
+    transition: all 0.3s ease;
+    width: 100%;
+    box-sizing: border-box;
+}
+
+.slot-info.filled {
+    background: rgba(76, 175, 80, 0.3);
+    border: 1px solid #4CAF50;
+    color: #4CAF50;
+    text-shadow: 0 0 5px rgba(76, 175, 80, 0.5);
+}
+
+#credits {
+    color: #4CAF50;
+}
+
+#cargo {
+    color: #FFC107;
+    margin-bottom: 10px;
+}
+
+#weapons {
+    color: #FF5722;
+}
+
+#shipStatus {
+    margin-bottom: 15px;
+}
+
+.statusBar {
+    margin-bottom: 10px;
+}
+
+.statusBar .label {
+    margin-bottom: 5px;
+    font-size: 14px;
+    color: #ccc;
+}
+
+.barContainer {
+    width: 150px;
+    height: 20px;
+    background: rgba(255, 255, 255, 0.1);
+    border-radius: 5px;
+    overflow: hidden;
+}
+
+.bar {
+    height: 100%;
+    width: 100%;
+    transition: width 0.3s ease;
+    text-align: center;
+    line-height: 20px;
+    font-size: 12px;
+    color: white;
+    text-shadow: 1px 1px 1px rgba(0, 0, 0, 0.5);
+}
+
+.bar.blue {
+    background: #2196F3;
+}
+
+.bar.pink {
+    background: #E91E63;
+}
+
+#planetInfo {
+    background: #222;
+    padding: 10px;
+    border: 1px solid #444;
+}
+
+.planetName {
+    font-size: 20px;
+    color: #ffff00;
+}
+
+.planetType {
+    font-size: 16px;
+    color: #00ff00;
+}
+
+.planetStats {
+    margin-top: 10px;
+    font-size: 14px;
+}
+
+#minimap {
+    position: relative;
+    width: 150px;
+    height: 150px;
+    margin: 10px;
+    border: 2px solid #444;
+    border-radius: 5px;
+    overflow: hidden;
+    background: rgba(0, 0, 0, 0.8);
+}
+
+#minimap canvas {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    cursor: pointer;
+}
+
+#score {
+    font-size: 14px;
+    color: #00ff00;
+}
+
+canvas {
+    flex-grow: 1;
+    background: #000;
+}
+
+#bottomPanel {
+    position: fixed;
+    bottom: 0;
+    left: 250px;
+    right: 0;
+    height: 60px;
+    background: rgba(51, 51, 51, 0.9);
+    display: flex;
+    justify-content: center;
+    gap: 20px;
+    padding: 10px;
+    z-index: 10;
+}
+
+.actionButton {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    width: 60px;
+    height: 60px;
+    background: rgba(68, 68, 68, 0.9);
+    border: 1px solid #666;
+    border-radius: 5px;
+    cursor: pointer;
+    transition: background 0.3s;
+}
+
+.actionButton:hover {
+    background: rgba(85, 85, 85, 0.9);
+}
+
+.actionButton img {
+    width: 30px;
+    height: 30px;
+    margin-bottom: 5px;
+}
+
+.actionButton span {
+    font-size: 10px;
+    color: white;
+    text-align: center;
+}
+
+#gameUI {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    text-align: center;
+    background: rgba(0, 0, 0, 0.8);
+    padding: 20px;
+    border: 1px solid #444;
+    display: none;
+}
+
+#mainMenu h1 {
+    color: #ffff00;
+    font-size: 32px;
+    margin-bottom: 20px;
+}
+
+#playerName {
+    padding: 10px;
+    margin: 10px;
+    font-size: 16px;
+    background: #222;
+    border: 1px solid #444;
+    color: white;
+    width: 200px;
+}
+
+.menu-button {
+    padding: 10px 20px;
+    margin: 10px;
+    background: #444;
+    color: white;
+    border: 1px solid #666;
+    cursor: pointer;
+    font-size: 18px;
+    transition: background 0.3s;
+}
+
+.menu-button:hover {
+    background: #555;
+}
+
+#gameStats {
+    position: absolute;
+    top: 10px;
+    left: 10px;
+    color: white;
+    font-size: 18px;
+}
+
+#buildMenu {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    background: rgba(0, 0, 0, 0.9);
+    border: 1px solid #444;
+    padding: 20px;
+    display: none;
+    z-index: 100;
+}
+
+#buildMenu.active {
+    display: block;
+}
+
+.buildingOption {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 10px;
+    border: 1px solid #666;
+    margin-bottom: 10px;
+    cursor: pointer;
+    transition: background 0.3s;
+}
+
+.buildingOption:hover {
+    background: #444;
+}
+
+.buildingIcon {
+    width: 40px;
+    height: 40px;
+    background: #222;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 24px;
+}
+
+.buildingInfo {
+    flex-grow: 1;
+}
+
+.buildingName {
+    font-size: 16px;
+    color: #fff;
+}
+
+.buildingCost {
+    font-size: 12px;
+    color: #aaa;
+}
+
+#researchMenu {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    background: rgba(0, 0, 0, 0.9);
+    border: 1px solid #444;
+    padding: 20px;
+    display: none;
+    z-index: 100;
+}
+
+#researchMenu.active {
+    display: block;
+}
+
+.researchOption {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 10px;
+    border: 1px solid #666;
+    margin-bottom: 10px;
+    cursor: pointer;
+    transition: background 0.3s;
+}
+
+.researchOption:hover {
+    background: #444;
+}
+
+.researchIcon {
+    width: 40px;
+    height: 40px;
+    background: #222;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 24px;
+}
+
+.researchInfo {
+    flex-grow: 1;
+}
+
+.researchName {
+    font-size: 16px;
+    color: #fff;
+}
+
+.researchLevel {
+    font-size: 12px;
+    color: #aaa;
+}
+
+.researchCost {
+    font-size: 12px;
+    color: #aaa;
+}
+
+#shipyardMenu {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    background: rgba(0, 0, 0, 0.9);
+    border: 1px solid #444;
+    padding: 20px;
+    display: none;
+    z-index: 100;
+}
+
+#shipyardMenu.active {
+    display: block;
+}
+
+.shipOption {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 10px;
+    border: 1px solid #666;
+    margin-bottom: 10px;
+    cursor: pointer;
+    transition: background 0.3s;
+}
+
+.shipOption:hover {
+    background: #444;
+}
+
+.shipIcon {
+    width: 40px;
+    height: 40px;
+    background: #222;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 24px;
+}
+
+.shipInfo {
+    flex-grow: 1;
+}
+
+.shipName {
+    font-size: 16px;
+    color: #fff;
+}
+
+.shipStats {
+    font-size: 12px;
+    color: #aaa;
+}
+
+.shipCost {
+    font-size: 12px;
+    color: #aaa;
+}
+
+#tradeMenu {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    background: rgba(0, 0, 0, 0.9);
+    border: 1px solid #444;
+    padding: 20px;
+    display: none;
+    z-index: 100;
+}
+
+#tradeMenu.active {
+    display: block;
+}
+
+.resourceTrade {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 10px;
+    border: 1px solid #666;
+    margin-bottom: 10px;
+}
+
+.resourceIcon {
+    width: 30px;
+    height: 30px;
+    background: #222;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 20px;
+}
+
+.resourceInfo {
+    flex-grow: 1;
+}
+
+.resourceName {
+    font-size: 16px;
+    color: #fff;
+}
+
+.resourcePrice {
+    font-size: 12px;
+    color: #aaa;
+}
+
+.tradeControls {
+    display: flex;
+    gap: 10px;
+}
+
+.tradeButton {
+    padding: 5px 10px;
+    background: #333;
+    border: 1px solid #666;
+    color: #fff;
+    cursor: pointer;
+    transition: background 0.3s;
+}
+
+.tradeButton:hover {
+    background: #444;
+}
+
+.gameMenu {
+    display: none;
+    position: fixed;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    background: rgba(0, 0, 0, 0.9);
+    border: 2px solid #444;
+    border-radius: 10px;
+    padding: 20px;
+    color: white;
+    min-width: 400px;
+    z-index: 1000;
+}
+
+.gameMenu.active {
+    display: block;
+}
+
+.menuTitle {
+    font-size: 20px;
+    font-weight: bold;
+    margin-bottom: 20px;
+    text-align: center;
+    color: #fff;
+}
+
+.closeButton {
+    position: absolute;
+    top: 10px;
+    right: 10px;
+    background: none;
+    border: none;
+    color: #fff;
+    font-size: 24px;
+    cursor: pointer;
+    padding: 0;
+    width: 30px;
+    height: 30px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 50%;
+}
+
+.closeButton:hover {
+    background: rgba(255, 255, 255, 0.1);
+}
+
+.planetDetails {
+    padding: 20px;
+}
+
+.planetHeader {
+    display: flex;
+    align-items: center;
+    margin-bottom: 20px;
+}
+
+.planetIcon {
+    width: 60px;
+    height: 60px;
+    border-radius: 50%;
+    border: 2px solid #fff;
+    margin-right: 20px;
+}
+
+.planetInfo {
+    flex-grow: 1;
+}
+
+.planetName {
+    font-size: 24px;
+    font-weight: bold;
+    margin-bottom: 5px;
+}
+
+.planetType {
+    font-size: 16px;
+    color: #aaa;
+}
+
+.planetStats {
+    background: rgba(255, 255, 255, 0.1);
+    padding: 15px;
+    border-radius: 8px;
+    margin-bottom: 20px;
+}
+
+.statRow {
+    display: flex;
+    justify-content: space-between;
+    margin-bottom: 10px;
+}
+
+.statRow:last-child {
+    margin-bottom: 0;
+}
+
+.label {
+    color: #aaa;
+}
+
+.value {
+    color: #fff;
+    font-weight: bold;
+}
+
+.planetActions {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 10px;
+}
+
+.actionBtn {
+    background: rgba(255, 255, 255, 0.1);
+    border: 1px solid #444;
+    border-radius: 5px;
+    color: white;
+    padding: 10px;
+    cursor: pointer;
+    transition: all 0.3s ease;
+}
+
+.actionBtn:hover {
+    background: rgba(255, 255, 255, 0.2);
+}
+
+.weaponsMenu {
+    background: rgba(0, 0, 0, 0.95);
+}
+
+.weaponsList {
+    display: flex;
+    flex-direction: column;
+    gap: 15px;
+}
+
+.weaponOption {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 10px;
+    background: rgba(255, 255, 255, 0.1);
+    border-radius: 5px;
+}
+
+.buyButton {
+    background: #4CAF50;
+    color: white;
+    border: none;
+    padding: 8px 15px;
+    border-radius: 4px;
+    cursor: pointer;
+    transition: background 0.3s ease;
+}
+
+.buyButton:hover {
+    background: #45a049;
+}
+
+/* Медиа-запросы для мобильных устройств */
+@media screen and (max-width: 768px) {
+    #leftPanel {
+        width: 100% !important;
+        max-width: none !important;
+        left: 0;
+        top: 0;
+        padding: 10px;
+        border-radius: 0;
+        background: rgba(0, 0, 0, 0.85);
+    }
+
+    #resources {
+        display: flex;
+        justify-content: space-around;
+        align-items: center;
+        flex-wrap: wrap;
+    }
+
+    #resources > div {
+        margin: 5px;
+        padding: 5px;
+        min-width: 100px;
+    }
+
+    #shipStatus {
+        display: none;
+    }
+
+    #planetInfo {
+        display: none;
+    }
+
+    #minimap {
+        display: none;
+    }
+
+    #score {
+        display: none;
+    }
+
+    #bottomPanel {
+        left: 0;
+        height: 80px;
+        padding: 5px;
+        gap: 10px;
+    }
+
+    .actionButton {
+        width: 50px;
+        height: 50px;
+    }
+
+    .actionButton img {
+        width: 25px;
+        height: 25px;
+    }
+
+    .actionButton span {
+        font-size: 8px;
+    }
+
+    .gameMenu {
+        width: 90%;
+        max-height: 80vh;
+        overflow-y: auto;
+    }
+
+    #planetMenu {
+        min-width: auto;
+        width: 90%;
+    }
+
+    .planetHeader {
+        flex-direction: column;
+        align-items: center;
+        text-align: center;
+    }
+
+    .planetActions {
+        grid-template-columns: 1fr;
+    }
+
+    .actionBtn {
+        padding: 15px;
+        font-size: 16px;
+    }
+
+    /* Мобильные контроллеры */
+    #mobileControls {
+        position: fixed;
+        bottom: 100px;
+        left: 20px;
+        display: none;
+        z-index: 100;
+    }
+
+    #mobileControls.active {
+        display: block;
+    }
+
+    .joystick {
+        width: 120px;
+        height: 120px;
+        background: rgba(255, 255, 255, 0.1);
+        border: 2px solid rgba(255, 255, 255, 0.3);
+        border-radius: 60px;
+        position: relative;
+    }
+
+    .joystick-knob {
+        width: 40px;
+        height: 40px;
+        background: rgba(255, 255, 255, 0.5);
+        border-radius: 20px;
+        position: absolute;
+        top: 50%;
+        left: 50%;
+        transform: translate(-50%, -50%);
+    }
+
+    .cargo-boxes {
+        justify-content: center;
+    }
+
+    .cargo-box {
+        width: 15px;
+        height: 15px;
+    }
+}
+
+/* Стили для оружейного магазина */
+.weaponsMenu {
+    position: fixed;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    background: rgba(0, 0, 0, 0.9);
+    border: 1px solid #444;
+    border-radius: 5px;
+    padding: 20px;
+    z-index: 1000;
+}
+
+.weaponsMenu h3 {
+    color: #fff;
+    text-align: center;
+    margin-bottom: 20px;
+    font-size: 20px;
+}
+
+.weaponOption {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 10px;
+    border: 1px solid #444;
+    margin-bottom: 10px;
+    border-radius: 3px;
+}
+
+.weaponOption span {
+    color: #fff;
+    margin-right: 20px;
+}
+
+.weaponOption button {
+    background: #444;
+    color: #fff;
+    border: none;
+    padding: 5px 15px;
+    border-radius: 3px;
+    cursor: pointer;
+    transition: background 0.3s;
+}
+
+.weaponOption button:hover {
+    background: #666;
+}
+
+/* Адаптивность для мобильных устройств */
+@media screen and (max-width: 768px) {
+    .weaponsMenu {
+        width: 90%;
+        max-width: 300px;
+    }
+
+    .weaponOption {
+        flex-direction: column;
+        gap: 10px;
+        text-align: center;
+    }
+
+    .weaponOption span {
+        margin-right: 0;
+    }
+
+    .weaponOption button {
+        width: 100%;
+        padding: 10px;
+    }
+}
+
+.weaponSelect {
+    margin-top: 20px;
+    padding-top: 20px;
+    border-top: 1px solid #444;
+}
+
+.weaponSelect h4 {
+    margin: 0 0 10px 0;
+    color: #fff;
+    font-size: 16px;
+}
+
+.selectButtons {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 10px;
+}
+
+.selectWeapon {
+    background: rgba(255, 255, 255, 0.1);
+    border: 1px solid #444;
+    border-radius: 5px;
+    color: white;
+    padding: 10px;
+    cursor: pointer;
+    transition: all 0.3s ease;
+}
+
+.selectWeapon:hover:not(:disabled) {
+    background: rgba(255, 255, 255, 0.2);
+}
+
+.selectWeapon:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+}
+
+.buyButton:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+    background: #45a049;
+}
+
+#shipStatus .value {
+    color: #fff;
+    font-weight: bold;
+    text-align: right;
+    padding-right: 10px;
+}
+
+#armor {
+    font-size: 20px;
+    font-weight: bold;
+}
+
+#currentWeapon {
+    color: #00ff00;
+}
+
+.weaponSlot, .inventorySlot {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    width: 60px;
+    height: 60px;
+    background: rgba(68, 68, 68, 0.9);
+    border: 1px solid #666;
+    border-radius: 5px;
+    cursor: pointer;
+    transition: all 0.3s ease;
+}
+
+.weaponSlot {
+    background: rgba(100, 0, 0, 0.5);
+}
+
+.weaponSlot.active {
+    background: rgba(200, 0, 0, 0.5);
+    border-color: #ff0000;
+}
+
+.weaponSlot:hover, .inventorySlot:hover {
+    background: rgba(85, 85, 85, 0.9);
+    transform: translateY(-2px);
+}
+
+.weaponSlot img, .inventorySlot img {
+    width: 30px;
+    height: 30px;
+    margin-bottom: 5px;
+}
+
+.weaponSlot span, .inventorySlot span {
+    font-size: 10px;
+    color: white;
+    text-align: center;
+}
+
+.weaponSlot[data-weapon]:not([data-weapon=""]):hover::after {
+    content: attr(data-weapon);
+    position: absolute;
+    bottom: 100%;
+    left: 50%;
+    transform: translateX(-50%);
+    background: rgba(0, 0, 0, 0.8);
+    padding: 5px 10px;
+    border-radius: 3px;
+    font-size: 12px;
+    white-space: nowrap;
+}
+
+.weaponSlots {
+    display: flex;
+    gap: 10px;
+    margin-top: 10px;
+    justify-content: center;
+}
+
+.weaponSlot {
+    width: 40px;
+    height: 40px;
+    background: rgba(0, 0, 0, 0.3);
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    border-radius: 5px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.3s ease;
+    padding: 5px;
+}
+
+.weaponSlot svg {
+    width: 24px;
+    height: 24px;
+    color: rgba(255, 255, 255, 0.7);
+}
+
+.weaponSlot.active {
+    background: rgba(76, 175, 80, 0.3);
+    border-color: #4CAF50;
+}
+
+.weaponSlot.active svg {
+    color: #4CAF50;
+}
+
+.cargoSlot {
+    padding: 8px;
+    margin: 5px 0;
+    border-radius: 4px;
+    background: rgba(0, 0, 0, 0.3);
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    transition: all 0.3s ease;
+}
+
+.cargoSlot.filled {
+    background: rgba(76, 175, 80, 0.3);
+    border-color: #4CAF50;
+    color: #4CAF50;
+}
+
+.cargo-boxes {
+    display: flex;
+    gap: 5px;
+    justify-content: center;
+    margin-top: 5px;
+}
+
+.cargo-box {
+    width: 20px;
+    height: 20px;
+    background: rgba(255, 255, 255, 0.2);
+    border: 1px solid rgba(255, 255, 255, 0.3);
+    border-radius: 3px;
+    transition: all 0.3s ease;
+}
+
+.cargo-box.filled {
+    background: #FFC107;
+    border-color: #FFD700;
+    box-shadow: 0 0 5px rgba(255, 193, 7, 0.5);
+}
+
+.cargo-main-info {
+    font-size: 14px;
+    margin-bottom: 8px;
+    text-align: center;
+}
+
+/* Стили для инвентаря оружия */
+.weapons-inventory {
+    display: flex;
+    gap: 10px;
+    padding: 10px;
+    background: rgba(0, 0, 0, 0.7);
+    border-radius: 10px;
+    box-shadow: 0 0 10px rgba(0, 0, 0, 0.5);
+}
+
+.weapon-slot {
+    position: relative;
+    transition: all 0.2s ease;
+}
+
+.weapon-slot:hover {
+    transform: scale(1.05);
+}
+
+.weapon-slot.active {
+    border-color: #00ff00 !important;
+    box-shadow: 0 0 10px rgba(0, 255, 0, 0.5);
+}
+
+.weapon-slot.locked {
+    opacity: 0.5;
+}
+
+.weapon-icon {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin-bottom: 4px;
+}
+
+.weapon-name {
+    font-size: 12px;
+    text-align: center;
+    white-space: nowrap;
+}
+
+/* Анимация для активного слота */
+@keyframes pulse {
+    0% { box-shadow: 0 0 5px rgba(0, 255, 0, 0.5); }
+    50% { box-shadow: 0 0 15px rgba(0, 255, 0, 0.8); }
+    100% { box-shadow: 0 0 5px rgba(0, 255, 0, 0.5); }
+}
+
+.weapon-slot.active {
+    animation: pulse 2s infinite;
+} 

@@ -1,0 +1,179 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>SpaceWars</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+    <div id="gameContainer" style="display: none;">
+        <canvas id="gameCanvas"></canvas>
+        
+        <div id="leftPanel">
+            <div id="resources">
+                <div class="resource"><span class="icon">⚡</span> <span id="energy">1000</span></div>
+                <div class="resource"><span class="icon">💎</span> <span id="minerals">500</span></div>
+                <div class="resource"><span class="icon">🌾</span> <span id="food">200</span></div>
+                <div class="resource"><span class="icon">💰</span> <span id="credits">20000</span></div>
+            </div>
+            
+            <div id="shipStatus">
+                <div class="statusBar">
+                    <div class="label">Щит</div>
+                    <div class="barContainer">
+                        <div id="shieldBar" class="bar blue"></div>
+                    </div>
+                </div>
+                <div class="statusBar">
+                    <div class="label">Энергия</div>
+                    <div class="barContainer">
+                        <div id="energyBar" class="bar pink"></div>
+                    </div>
+                </div>
+                
+                
+
+            <div class="statusBar">
+                <div class="label">CARGO</div>
+                <div class="bar cyan"></div>
+            </div>
+            <div class="statusBar">
+                <div class="label">SPEED</div>
+                <div class="bar yellow"></div>
+            </div>
+
+            
+
+            <div id="minimapContainer">
+                <canvas id="minimapCanvas" width="150" height="150"></canvas>
+            </div>
+            
+            
+
+            <div id="resources">
+                <div id="cargo">Грузовой отсек: 0/1</div>
+                <div id="weapons">Нет оружия</div>
+            </div>
+        </div>
+
+        <div id="bottomPanel">
+            <div class="weaponSlot" data-weapon="laser">
+                <img src="" alt="Laser">
+                <span>Лазер</span>
+            </div>
+            <div class="weaponSlot" data-weapon="bombs">
+                <img src="" alt="Bombs">
+                <span>Бомбы</span>
+            </div>
+            <div class="weaponSlot" data-weapon="missile">
+                <img src="" alt="missile">
+                <span>Бомбы</span>
+            </div>
+            <div class="inventorySlot">
+                <img src="" alt="Inventory">
+                <span>Пусто</span>
+            </div>
+            <div class="inventorySlot">
+                <img src="" alt="Inventory">
+                <span>Пусто</span>
+            </div>
+            <div class="inventorySlot">
+                <img src="" alt="Inventory">
+                <span>Пусто</span>
+            </div>
+            <div class="inventorySlot">
+                <img src="" alt="Inventory">
+                <span>Пусто</span>
+            </div>
+        </div>
+
+        <!-- Игровые меню -->
+        <div id="buildMenu" class="gameMenu">
+            <div class="menuTitle">Строительство</div>
+            <button class="closeButton">×</button>
+            <div class="buildingList"></div>
+        </div>
+
+        <div id="researchMenu" class="gameMenu">
+            <div class="menuTitle">Исследования</div>
+            <button class="closeButton">×</button>
+            <div class="researchList"></div>
+        </div>
+
+        <div id="shipyardMenu" class="gameMenu">
+            <div class="menuTitle">Верфь</div>
+            <button class="closeButton">×</button>
+            <div class="shipList"></div>
+        </div>
+
+        <div id="tradeMenu" class="gameMenu">
+            <div class="menuTitle">Торговля</div>
+            <button class="closeButton">×</button>
+            <div class="resourceList"></div>
+        </div>
+
+        <div class="tooltip"></div>
+
+        <!-- Диалоговое меню планеты -->
+        <div id="planetMenu" class="gameMenu">
+            <div class="menuTitle">Информация о планете</div>
+            <button class="closeButton">×</button>
+            
+            <div class="planetDetails">
+                <div class="planetHeader">
+                    <div class="planetIcon"></div>
+                    <div class="planetInfo">
+                        <div class="planetName"></div>
+                        <div class="planetType"></div>
+                    </div>
+                </div>
+                
+                <div class="planetStats">
+                    <div class="statRow">
+                        <span class="label">Население:</span>
+                        <span class="value" id="planetPopulation">0</span>
+                    </div>
+                    <div class="statRow">
+                        <span class="label">Ресурсы:</span>
+                        <span class="value" id="planetResources">Нет данных</span>
+                    </div>
+                    <div class="statRow">
+                        <span class="label">Климат:</span>
+                        <span class="value" id="planetClimate">Неизвестно</span>
+                    </div>
+                </div>
+
+                <div class="planetActions">
+                    <button class="actionBtn" id="colonize">Колонизировать</button>
+                    <button class="actionBtn" id="trade">Торговать</button>
+                    <button class="actionBtn" id="build">Строить</button>
+                    <button class="actionBtn" id="scan">Сканировать</button>
+                    <button class="actionBtn" id="buy_weapons">Купить оружие</button>
+                </div>
+            </div>
+        </div>
+
+        <div id="gameUI">
+            <div id="shield">Щит: 100%</div>
+            <div id="credits">Кредиты: 1000</div>
+            <div id="cargo">Груз: 0/100</div>
+            <div id="cooldown">Готово к стрельбе</div>
+            <div id="weapons"></div>
+        </div>
+    </div>
+
+    <!-- Мобильные контроллеры -->
+    <div id="mobileControls">
+        <div class="joystick">
+            <div class="joystick-knob"></div>
+        </div>
+    </div>
+
+    <script src="/socket.io/socket.io.js"></script>
+    <script type="module" src="js/menu.js"></script>
+    <script type="module" src="js/icons.js"></script>
+    <script type="module" src="js/network.js"></script>
+    <script type="module" src="js/voice.js"></script>
+    <script type="module" src="js/game.js"></script>
+</body>
+</html> 
