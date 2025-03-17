@@ -1,25 +1,19 @@
 #!/bin/bash
 
 # Обновление системы
-apt update
-apt upgrade -y
+apt update && apt upgrade -y
 
 # Установка необходимых пакетов
 apt install -y git nginx nodejs npm
 
-# Установка NVM
-curl -o- https://raw.githubusercontent.com/nvm-sh/nvm/v0.39.0/install.sh | bash
-export NVM_DIR="$HOME/.nvm"
-[ -s "$NVM_DIR/nvm.sh" ] && \. "$NVM_DIR/nvm.sh"
-[ -s "$NVM_DIR/bash_completion" ] && \. "$NVM_DIR/bash_completion"
+# Установка PM2 глобально
+npm install -g pm2
 
-# Установка Node.js
-nvm install 16
-nvm use 16
-
-# Создание директорий проектов
-mkdir -p /var/www/dev.iboost.ua
+# Создание директории для проекта
 mkdir -p /var/www/dev.iboost.ua/warpath
+
+# Клонирование репозитория
+git clone https://github.com/money1over/warpath.git /var/www/dev.iboost.ua/warpath
 
 # Установка зависимостей
 cd /var/www/dev.iboost.ua/warpath/server
@@ -31,37 +25,35 @@ server {
     listen 80;
     server_name dev.iboost.ua;
 
+    charset utf-8;
+    client_max_body_size 20M;
+
+    root /var/www/dev.iboost.ua/warpath/client;
+    index index.html;
+
     location / {
-        root /var/www/dev.iboost.ua;
         try_files $uri $uri/ /index.html;
+        add_header 'Access-Control-Allow-Origin' '*';
+        add_header 'Access-Control-Allow-Methods' 'GET, POST, OPTIONS';
+        add_header 'Access-Control-Allow-Headers' 'DNT,User-Agent,X-Requested-With,If-Modified-Since,Cache-Control,Content-Type,Range';
+    }
+
+    location /assets/ {
+        alias /var/www/dev.iboost.ua/warpath/client/assets/;
+        expires 30d;
+        add_header Cache-Control "public, no-transform";
     }
 
     location /socket.io/ {
-        proxy_pass http://127.0.0.1:80;
+        proxy_pass http://localhost:81;
         proxy_http_version 1.1;
         proxy_set_header Upgrade $http_upgrade;
-        proxy_set_header Connection "upgrade";
+        proxy_set_header Connection 'upgrade';
         proxy_set_header Host $host;
         proxy_cache_bypass $http_upgrade;
-    }
-}
-
-server {
-    listen 80;
-    server_name warpath.dev.iboost.ua;
-
-    location / {
-        root /var/www/dev.iboost.ua/warpath/client;
-        try_files $uri $uri/ /index.html;
-    }
-
-    location /socket.io/ {
-        proxy_pass http://127.0.0.1:81;
-        proxy_http_version 1.1;
-        proxy_set_header Upgrade $http_upgrade;
-        proxy_set_header Connection "upgrade";
-        proxy_set_header Host $host;
-        proxy_cache_bypass $http_upgrade;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
     }
 }
 EOL
@@ -69,14 +61,11 @@ EOL
 # Активация конфигурации Nginx
 ln -sf /etc/nginx/sites-available/dev.iboost.ua /etc/nginx/sites-enabled/
 rm -f /etc/nginx/sites-enabled/default
-nginx -t
-systemctl restart nginx
+nginx -t && systemctl restart nginx
 
-# Установка PM2
-npm install -g pm2
-
-# Запуск приложений
+# Запуск приложения через PM2
 cd /var/www/dev.iboost.ua/warpath/server
+pm2 delete all
 pm2 start server.js --name "warpath" -- --port 81
 pm2 save
 pm2 startup 

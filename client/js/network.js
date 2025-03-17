@@ -9,32 +9,37 @@ class NetworkManager {
         // Подключение к серверу
         this.socket.on('connect', () => {
             console.log('Подключено к серверу');
+            console.log('Состояние playerShip до инициализации:', this.game.playerShip);
             this.initializePlayer();
         });
 
         // Получение полного состояния игры
         this.socket.on('game:state', (state) => {
+            console.log('Получено обновление состояния игры:', state);
+            
             // Обновляем состояние игры
-            state.players.forEach(player => {
-                if (player.id !== this.socket.id) {
-                    this.game.addOtherPlayer(player);
+            if (state.players) {
+                // Находим текущего игрока
+                const currentPlayer = state.players.find(p => p.id === this.socket.id);
+                if (currentPlayer) {
+                    console.log('Найден текущий игрок:', currentPlayer);
+                    // Обновляем состояние корабля игрока
+                    Object.assign(this.game.playerShip, currentPlayer);
+                    console.log('Обновлено состояние корабля:', this.game.playerShip);
                 }
-            });
-
-            // Обновляем состояние планет
-            state.planets.forEach(planet => {
-                this.game.updatePlanet(planet);
-            });
-
-            // Добавляем существующие снаряды
-            state.projectiles.forEach(projectile => {
-                this.game.addProjectile(projectile);
-            });
-
-            // Добавляем ботов
-            if (state.bots) {
-                this.game.bots = state.bots;
             }
+            
+            // Обновляем другие части состояния
+            if (state.planets) {
+                this.game.gameState.planets = new Map(Object.entries(state.planets));
+            }
+            
+            if (state.resources) {
+                this.game.gameState.resources = state.resources;
+            }
+            
+            // Обновляем UI
+            this.game.updateUI();
         });
 
         // Новый игрок подключился
@@ -83,23 +88,39 @@ class NetworkManager {
 
         // Обновление щита игрока
         this.socket.on('player:damaged', (data) => {
-            // Обновляем щит независимо от состояния вкладки
-            this.game.playerShip.shield = data.shield;
+            console.log('Получены данные об уроне:', data);
+            console.log('Состояние корабля до обновления:', {
+                shield: this.game.playerShip.shield,
+                id: this.socket.id
+            });
             
-            // Активируем анимацию урона только если вкладка активна
-            if (this.game.isPageVisible) {
-                this.game.damageAnimation.active = true;
-                this.game.damageAnimation.startTime = Date.now();
-                this.game.showDamageNumber(this.game.playerShip.x, this.game.playerShip.y, data.damage);
+            if (data.playerId === this.socket.id) {
+                // Проверяем, что значение щита является числом
+                if (typeof data.shield === 'number') {
+                    this.game.playerShip.shield = data.shield;
+                    console.log('Состояние корабля после обновления:', {
+                        shield: this.game.playerShip.shield,
+                        id: this.socket.id
+                    });
+                    
+                    // Активируем анимацию урона только если страница видна
+                    if (this.game.isPageVisible) {
+                        this.game.activateDamageAnimation();
+                    }
+                    
+                    // Проверяем уничтожение корабля
+                    if (data.shield <= 0) {
+                        this.game.playerShip.destroyed = true;
+                        this.game.showRestartDialog();
+                    }
+                    
+                    this.game.updateUI();
+                } else {
+                    console.error('Получено некорректное значение щита:', data.shield);
+                }
+            } else {
+                console.log('Получен урон для другого игрока:', data.playerId);
             }
-            
-            // Проверяем уничтожение корабля
-            if (data.shield <= 0) {
-                this.game.playerShip.destroyed = true;
-                window.setTimeout(() => this.game.showRestartDialog(), 100);
-            }
-            
-            this.game.updateUI();
         });
 
         // Обновление кредитов
@@ -167,6 +188,35 @@ class NetworkManager {
             // Обновляем интерфейс
             this.game.updateUI();
             this.game.showNotification('Ресурсы успешно добыты!');
+        });
+
+        // Обработка перезапуска игры
+        this.socket.on('player:restarted', (data) => {
+            console.log('Получены данные для перезапуска:', data);
+            console.log('Состояние корабля до обновления:', {
+                shield: this.game.playerShip.shield,
+                id: this.socket.id
+            });
+            
+            if (data.playerId === this.socket.id) {
+                // Проверяем наличие необходимых данных
+                if (data && typeof data.shield === 'number') {
+                    // Полностью обновляем состояние корабля
+                    Object.assign(this.game.playerShip, data);
+                    
+                    console.log('Состояние корабля после обновления:', {
+                        shield: this.game.playerShip.shield,
+                        id: this.socket.id
+                    });
+                    
+                    this.game.updateUI();
+                    this.game.showNotification('Игра перезапущена!');
+                } else {
+                    console.error('Получены некорректные данные для перезапуска:', data);
+                }
+            } else {
+                console.log('Получено событие перезапуска для другого игрока:', data.playerId);
+            }
         });
     }
 

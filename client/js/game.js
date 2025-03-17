@@ -1,3 +1,31 @@
+// Константы для оружия
+const WEAPONS = {
+    laser: {
+        name: 'Лазер',
+        icon: '⚔️',
+        price: 1000,
+        cooldown: 1000, // 1 секунда
+        damage: 10,
+        range: 600
+    },
+    bombs: {
+        name: 'Бомбы',
+        icon: '💣',
+        price: 2000,
+        cooldown: 3000, // 3 секунды
+        damage: 20,
+        range: 200
+    },
+    missile: {
+        name: 'Ракеты',
+        icon: '🚀',
+        price: 3000,
+        cooldown: 5000, // 5 секунд
+        damage: 35,
+        range: 800
+    }
+};
+
 import NetworkManager from './network.js';
 class Game {
     constructor(initialState) {
@@ -63,11 +91,11 @@ class Game {
         this.gameState = {
             players: new Map(),
             planets: new Map(),
-            projectiles: new Set(),
             resources: {
-                credits: initialState.resources.credits || 1000
+                credits: initialState?.resources?.credits || 1000
             },
-            currentPlanet: null
+            currentPlanet: null,
+            projectiles: [] // Добавляем инициализацию projectiles как массив
         };
 
         // Инициализация корабля игрока
@@ -91,6 +119,7 @@ class Game {
                 missile: false
             },
             currentWeapon: null,
+            lastShotTime: {}, // Добавляем объект для хранения времени последнего выстрела
             cargoSlots: {
                 slot1: { unlocked: true, amount: 0 },
                 slot2: { unlocked: false, amount: 0 },
@@ -195,6 +224,9 @@ class Game {
         this.network.socket.on('purchase:failed', (data) => {
             this.showNotification(data.message);
         });
+
+        // Инициализация массива снарядов
+        this.projectiles = [];
     }
 
     resizeCanvas() {
@@ -1068,12 +1100,12 @@ class Game {
 
         // Обновление ресурсов базовой планеты игрока
         const playerBase = Array.from(this.gameState.planets.values()).find(p => p.isPlayerBase);
-        if (playerBase) {
+        if (playerBase && playerBase.buildings) {
             // Производство ресурсов зданиями
             const production = {
-                minerals: playerBase.buildings.mines * 2,
-                food: playerBase.buildings.farms * 2,
-                energy: playerBase.buildings.powerPlants * 2
+                minerals: (playerBase.buildings.mines || 0) * 2,
+                food: (playerBase.buildings.farms || 0) * 2,
+                energy: (playerBase.buildings.powerPlants || 0) * 2
             };
 
             Object.entries(production).forEach(([resource, amount]) => {
@@ -1093,26 +1125,35 @@ class Game {
     updateUI() {
         // Обновляем информацию о щите
         const shieldElement = document.getElementById('shield');
-        if (shieldElement) {
-            shieldElement.textContent = `Щит: ${Math.floor(this.gameState.player.shield)}%`;
+        if (shieldElement && this.playerShip && typeof this.playerShip.shield === 'number') {
+            console.log('Обновление щита:', {
+                playerShip: this.playerShip,
+                shield: this.playerShip.shield
+            });
+            shieldElement.textContent = `Щит: ${Math.floor(this.playerShip.shield)}%`;
+        } else {
+            console.warn('Не удалось обновить щит:', {
+                playerShip: this.playerShip,
+                hasShield: this.playerShip ? typeof this.playerShip.shield === 'number' : false
+            });
         }
 
         // Обновляем информацию о кредитах
         const creditsElement = document.getElementById('credits');
-        if (creditsElement) {
-            creditsElement.textContent = `Кредиты: ${this.gameState.player.resources.credits}`;
+        if (creditsElement && this.gameState && this.gameState.resources) {
+            creditsElement.textContent = `Кредиты: ${this.gameState.resources.credits}`;
         }
 
         // Обновляем информацию о грузовых отсеках
         const cargoElement = document.getElementById('cargo');
-        if (cargoElement) {
+        if (cargoElement && this.playerShip && this.playerShip.cargoSlots) {
             let totalCargo = 0;
             let totalCapacity = 0;
             let unlockedSlots = 0;
 
-            Object.values(this.gameState.player.cargoSlots).forEach(slot => {
+            Object.values(this.playerShip.cargoSlots).forEach(slot => {
                 if (slot.unlocked) {
-                    totalCargo += slot.amount;
+                    totalCargo += slot.amount || 0;
                     totalCapacity += 100; // Каждый слот вмещает 100 единиц
                     unlockedSlots++;
                 }
@@ -1124,70 +1165,24 @@ class Game {
         // Обновляем инвентарь оружия
         const weaponsContainer = document.getElementById('weapons');
         if (weaponsContainer) {
-            weaponsContainer.innerHTML = '';
-            
-            // Создаем контейнер для инвентаря оружия
+            weaponsContainer.innerHTML = ''; // Очищаем контейнер перед обновлением
             const weaponsInventory = document.createElement('div');
             weaponsInventory.className = 'weapons-inventory';
-            weaponsInventory.style.cssText = `
-                position: fixed;
-                bottom: 20px;
-                left: 50%;
-                transform: translateX(-50%);
-                display: flex;
-                gap: 10px;
-                background: rgba(0, 0, 0, 0.7);
-                padding: 10px;
-                border-radius: 10px;
-                z-index: 1000;
-            `;
 
-            // Добавляем слоты для каждого типа оружия
-            Object.entries(this.gameState.player.weapons).forEach(([weaponType, isUnlocked]) => {
+            Object.entries(this.playerShip.weapons).forEach(([weaponType, isUnlocked]) => {
                 const weaponSlot = document.createElement('div');
-                weaponSlot.className = `weapon-slot ${isUnlocked ? 'unlocked' : 'locked'} ${this.gameState.player.selectedWeapon === weaponType ? 'active' : ''}`;
-                weaponSlot.style.cssText = `
-                    width: 60px;
-                    height: 60px;
-                    border: 2px solid ${isUnlocked ? '#4CAF50' : '#666'};
-                    border-radius: 8px;
-                    display: flex;
-                    flex-direction: column;
-                    align-items: center;
-                    justify-content: center;
-                    cursor: ${isUnlocked ? 'pointer' : 'not-allowed'};
-                    background: ${isUnlocked ? 'rgba(76, 175, 80, 0.2)' : 'rgba(102, 102, 102, 0.2)'};
-                    transition: all 0.2s;
+                weaponSlot.className = `weapon-slot ${isUnlocked ? 'unlocked' : 'locked'} ${this.playerShip.currentWeapon === weaponType ? 'active' : ''}`;
+                weaponSlot.innerHTML = `
+                    <div class="weapon-icon">${WEAPONS[weaponType].icon || '⚔️'}</div>
+                    <div class="weapon-name">${WEAPONS[weaponType].name}</div>
+                    ${!isUnlocked ? `<div class="weapon-price">${WEAPONS[weaponType].price} кредитов</div>` : ''}
                 `;
-
-                // Иконка оружия
-                const weaponIcon = document.createElement('div');
-                weaponIcon.className = 'weapon-icon';
-                weaponIcon.style.cssText = `
-                    width: 30px;
-                    height: 30px;
-                    background: ${isUnlocked ? '#4CAF50' : '#666'};
-                    border-radius: 4px;
-                    margin-bottom: 4px;
-                `;
-
-                // Название оружия
-                const weaponName = document.createElement('div');
-                weaponName.className = 'weapon-name';
-                weaponName.style.cssText = `
-                    font-size: 12px;
-                    color: ${isUnlocked ? '#fff' : '#666'};
-                    text-align: center;
-                `;
-                weaponName.textContent = this.getWeaponName(weaponType);
-
-                weaponSlot.appendChild(weaponIcon);
-                weaponSlot.appendChild(weaponName);
 
                 if (isUnlocked) {
                     weaponSlot.addEventListener('click', () => {
-                        this.gameState.player.selectedWeapon = weaponType;
+                        this.playerShip.currentWeapon = weaponType;
                         this.updateUI();
+                        this.showNotification(`Выбрано оружие: ${WEAPONS[weaponType].name}`);
                     });
                 }
 
@@ -1200,9 +1195,9 @@ class Game {
         // Обновляем информацию о перезарядке
         const cooldownElement = document.getElementById('cooldown');
         if (cooldownElement) {
-            const selectedWeapon = this.gameState.player.selectedWeapon;
-            if (selectedWeapon && this.gameState.player.weapons[selectedWeapon]) {
-                const lastShotTime = this.gameState.player.lastShotTime[selectedWeapon] || 0;
+            const selectedWeapon = this.playerShip.currentWeapon;
+            if (selectedWeapon && this.playerShip.weapons[selectedWeapon]) {
+                const lastShotTime = this.playerShip.lastShotTime[selectedWeapon] || 0;
                 const cooldown = WEAPONS[selectedWeapon].cooldown;
                 const now = Date.now();
                 const remainingTime = Math.max(0, cooldown - (now - lastShotTime));
@@ -1264,20 +1259,25 @@ class Game {
         this.updateMinimap();
 
         // Рендерим других игроков
-        this.gameState.players.forEach(player => {
-            if (player.id !== this.network.socket.id) {
-                this.renderPlayer(player);
-            }
-        });
+        if (this.gameState.players) {
+            this.gameState.players.forEach(player => {
+                if (player.id !== this.network.socket.id) {
+                    this.renderPlayer(player);
+                }
+            });
+        }
 
         // Рендерим снаряды
-        this.gameState.projectiles.forEach(projectile => {
-            const screenPos = this.worldToScreen(projectile.x, projectile.y);
-            this.ctx.beginPath();
-            this.ctx.arc(screenPos.x, screenPos.y, 2, 0, Math.PI * 2);
-            this.ctx.fillStyle = projectile.type === 'laser' ? '#ff0000' : '#ffff00';
-            this.ctx.fill();
-        });
+        if (this.gameState.projectiles && Array.isArray(this.gameState.projectiles)) {
+            this.gameState.projectiles.forEach(projectile => {
+                if (!projectile) return;
+                const screenPos = this.worldToScreen(projectile.x, projectile.y);
+                this.ctx.beginPath();
+                this.ctx.arc(screenPos.x, screenPos.y, 2, 0, Math.PI * 2);
+                this.ctx.fillStyle = projectile.type === 'laser' ? '#ff0000' : '#ffff00';
+                this.ctx.fill();
+            });
+        }
 
         this.renderExplosions();
     }
@@ -1671,14 +1671,26 @@ class Game {
 
     // Система оружия
     createProjectile(x, y, rotation, type, isBot = false) {
-        if (!this.projectiles) {
-            this.projectiles = [];
-        }
-
         // Проверяем, есть ли у игрока это оружие
         if (!isBot && !this.playerShip.weapons[type]) {
             this.showNotification('Это оружие не куплено!');
             return;
+        }
+
+        // Проверяем перезарядку для выстрелов игрока
+        if (!isBot) {
+            const lastShotTime = this.playerShip.lastShotTime[type] || 0;
+            const cooldown = WEAPONS[type].cooldown;
+            const now = Date.now();
+            
+            if (now - lastShotTime < cooldown) {
+                const remainingTime = Math.ceil((cooldown - (now - lastShotTime)) / 1000);
+                this.showNotification(`Перезарядка: ${remainingTime}с`);
+                return;
+            }
+            
+            // Обновляем время последнего выстрела
+            this.playerShip.lastShotTime[type] = now;
         }
 
         // Настройки урона для разных типов оружия
@@ -2128,7 +2140,10 @@ class Game {
     }
 
     addProjectile(projectile) {
-        this.gameState.projectiles.add(projectile);
+        if (!this.gameState.projectiles) {
+            this.gameState.projectiles = [];
+        }
+        this.gameState.projectiles.push(projectile);
     }
 
     updatePlanet(planetData) {
@@ -2286,6 +2301,7 @@ class Game {
                     missile: false
                 },
                 currentWeapon: null,
+                lastShotTime: {}, // Добавляем объект для хранения времени последнего выстрела
                 cargoSlots: {
                     slot1: { unlocked: true, amount: 0 },
                     slot2: { unlocked: false, amount: 0 },

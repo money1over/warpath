@@ -305,36 +305,39 @@ function updateGame() {
 
             shouldKeepProjectile = false;
         } else if (projectile.type === 'laser') {
-            // Проверка попаданий лазера
+            // Проверяем попадание в игроков
             let hit = false;
-
-            // Проверяем попадания по игрокам
             gameState.players.forEach((player, playerId) => {
-                if (!hit && playerId !== projectile.playerId && !player.destroyed) {
+                if (!player.destroyed && playerId !== projectile.playerId) {
                     const dx = player.x - projectile.x;
                     const dy = player.y - projectile.y;
                     const distance = Math.sqrt(dx * dx + dy * dy);
-
+                    
                     if (distance < 30) {
+                        console.log('Попадание по игроку:', {
+                            targetId: playerId,
+                            targetName: player.name,
+                            oldShield: player.shield,
+                            damage: projectile.damage,
+                            projectileType: projectile.type
+                        });
+                        
                         hit = true;
                         player.shield -= projectile.damage;
-                        console.log(`Лазер нанес урон ${projectile.damage} игроку ${player.name}`);
-
+                        
+                        console.log('Новое значение щита:', player.shield);
+                        
+                        io.to(playerId).emit('player:damaged', { shield: player.shield });
+                        
                         if (player.shield <= 0) {
-                            player.destroyed = true;
-                            const killerName = projectile.isBot ? 'Бот' : 
-                                (gameState.players.get(projectile.playerId)?.name || 'Неизвестный игрок');
-                            io.emit('player:killed', {
-                                killer: killerName,
-                                victim: player.name,
-                                isBot: projectile.isBot
+                            console.log('Игрок уничтожен:', {
+                                playerId: playerId,
+                                playerName: player.name
                             });
+                            
+                            player.destroyed = true;
+                            io.to(playerId).emit('player:destroyed');
                         }
-
-                        io.to(playerId).emit('player:damaged', {
-                            shield: player.shield,
-                            damage: projectile.damage
-                        });
                     }
                 }
             });
@@ -402,7 +405,16 @@ function updateGame() {
 
         // Регенерация щита
         if (player.shield < 100) {
+            console.log('Регенерация щита игрока:', {
+                playerId: playerId,
+                playerName: player.name,
+                oldShield: player.shield
+            });
+            
             player.shield = Math.min(100, player.shield + 0.1);
+            
+            console.log('Новое значение щита:', player.shield);
+            
             io.to(playerId).emit('player:damaged', { shield: player.shield });
         }
     });
@@ -475,6 +487,15 @@ io.on('connection', (socket) => {
         console.log('Игрок инициализирован:', player);
 
         // Отправляем текущее состояние игры новому игроку
+        console.log('Отправляем состояние игры игроку:', {
+            playerId: socket.id,
+            playerState: player,
+            totalPlayers: gameState.players.size,
+            totalPlanets: gameState.planets.size,
+            totalProjectiles: gameState.projectiles.length,
+            totalBots: gameState.bots.length
+        });
+        
         socket.emit('game:state', {
             currentPlayer: player,
             players: Array.from(gameState.players.values()),
@@ -788,6 +809,12 @@ io.on('connection', (socket) => {
     socket.on('player:restart', () => {
         const player = gameState.players.get(socket.id);
         if (player) {
+            console.log('Перезапуск игрока:', {
+                playerId: socket.id,
+                playerName: player.name,
+                oldState: player
+            });
+            
             // Полностью сбрасываем состояние игрока
             const newPlayer = {
                 id: socket.id,
@@ -816,6 +843,8 @@ io.on('connection', (socket) => {
                     slot5: { unlocked: false, amount: 0 }
                 }
             };
+            
+            console.log('Новое состояние игрока:', newPlayer);
             
             // Заменяем старого игрока новым
             gameState.players.set(socket.id, newPlayer);
@@ -881,8 +910,27 @@ function findNearestTarget(shooter) {
     return nearestTarget;
 }
 
+// Обработка регенерации щита
+setInterval(() => {
+    gameState.players.forEach((player, socketId) => {
+        if (player.shield < 100) {
+            console.log('Регенерация щита игрока:', {
+                playerId: socketId,
+                playerName: player.name,
+                oldShield: player.shield
+            });
+            
+            player.shield = Math.min(100, player.shield + 0.1);
+            
+            console.log('Новое значение щита:', player.shield);
+            
+            io.to(socketId).emit('player:damaged', { shield: player.shield });
+        }
+    });
+}, 1000);
+
 // Запуск сервера
-const PORT = process.argv[2] || 80;
+const PORT = process.env.PORT || 81;
 http.listen(PORT, () => {
-    console.log(`Сервер запущен на порту ${PORT}`);
+    console.log(`Server is running on port ${PORT}`);
 }); 
