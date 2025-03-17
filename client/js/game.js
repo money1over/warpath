@@ -41,6 +41,32 @@ class Game {
             this.isPageVisible = !document.hidden;
         });
 
+        // Инициализируем корабль игрока
+        this.playerShip = {
+            x: 4800,
+            y: 4800,
+            rotation: 0,
+            speed: 0,
+            maxSpeed: 5,
+            shield: 100,
+            armor: 50,
+            energy: 100,
+            weapons: {
+                laser: false,
+                bombs: false,
+                missile: false
+            },
+            cargoSlots: {
+                slot1: { unlocked: true, amount: 0 },
+                slot2: { unlocked: false, amount: 0 },
+                slot3: { unlocked: false, amount: 0 },
+                slot4: { unlocked: false, amount: 0 },
+                slot5: { unlocked: false, amount: 0 }
+            },
+            lastShotTime: {},
+            destroyed: false
+        };
+
         this.canvas = document.getElementById('gameCanvas');
         if (!this.canvas) {
             console.error('Canvas not found!');
@@ -96,38 +122,6 @@ class Game {
             },
             currentPlanet: null,
             projectiles: [] // Добавляем инициализацию projectiles как массив
-        };
-
-        // Инициализация корабля игрока
-        this.playerShip = {
-            x: this.worldSize.width / 2,
-            y: this.worldSize.height / 2,
-            rotation: 0,
-            speed: 0,
-            maxSpeed: 5,
-            acceleration: 0.1,
-            deceleration: 0.05,
-            shield: 100,
-            armor: 0,
-            immortalArmor: false,
-            energy: 100,
-            destroyed: false,
-            target: null,
-            weapons: {
-                laser: false,
-                bombs: false,
-                missile: false
-            },
-            currentWeapon: null,
-            lastShotTime: {}, // Добавляем объект для хранения времени последнего выстрела
-            cargoSlots: {
-                slot1: { unlocked: true, amount: 0 },
-                slot2: { unlocked: false, amount: 0 },
-                slot3: { unlocked: false, amount: 0 },
-                slot4: { unlocked: false, amount: 0 },
-                slot5: { unlocked: false, amount: 0 }
-            },
-            maxCargoPerSlot: 100
         };
 
         // Инициализация управления
@@ -1123,93 +1117,54 @@ class Game {
     }
 
     updateUI() {
-        // Обновляем информацию о щите
+        // Обновление информации о щите
         const shieldElement = document.getElementById('shield');
         if (shieldElement && this.playerShip && typeof this.playerShip.shield === 'number') {
-            console.log('Обновление щита:', {
-                playerShip: this.playerShip,
-                shield: this.playerShip.shield
-            });
-            shieldElement.textContent = `Щит: ${Math.floor(this.playerShip.shield)}%`;
+            shieldElement.textContent = `Щит: ${Math.round(this.playerShip.shield)}%`;
         } else {
-            console.warn('Не удалось обновить щит:', {
+            console.warn('Не удалось обновить информацию о щите:', {
+                shieldElement: !!shieldElement,
                 playerShip: this.playerShip,
-                hasShield: this.playerShip ? typeof this.playerShip.shield === 'number' : false
+                shield: this.playerShip?.shield
             });
         }
 
-        // Обновляем информацию о кредитах
+        // Обновление информации о кредитах
         const creditsElement = document.getElementById('credits');
         if (creditsElement && this.gameState && this.gameState.resources) {
             creditsElement.textContent = `Кредиты: ${this.gameState.resources.credits}`;
         }
 
-        // Обновляем информацию о грузовых отсеках
+        // Обновление информации о грузе
         const cargoElement = document.getElementById('cargo');
         if (cargoElement && this.playerShip && this.playerShip.cargoSlots) {
-            let totalCargo = 0;
-            let totalCapacity = 0;
-            let unlockedSlots = 0;
-
-            Object.values(this.playerShip.cargoSlots).forEach(slot => {
-                if (slot.unlocked) {
-                    totalCargo += slot.amount || 0;
-                    totalCapacity += 100; // Каждый слот вмещает 100 единиц
-                    unlockedSlots++;
-                }
-            });
-
+            const totalCargo = Object.values(this.playerShip.cargoSlots)
+                .filter(slot => slot.unlocked)
+                .reduce((sum, slot) => sum + slot.amount, 0);
+            const totalCapacity = Object.values(this.playerShip.cargoSlots)
+                .filter(slot => slot.unlocked)
+                .reduce((sum, slot) => sum + 100, 0);
             cargoElement.textContent = `Груз: ${totalCargo}/${totalCapacity}`;
         }
 
-        // Обновляем инвентарь оружия
-        const weaponsContainer = document.getElementById('weapons');
-        if (weaponsContainer) {
-            weaponsContainer.innerHTML = ''; // Очищаем контейнер перед обновлением
-            const weaponsInventory = document.createElement('div');
-            weaponsInventory.className = 'weapons-inventory';
-
-            Object.entries(this.playerShip.weapons).forEach(([weaponType, isUnlocked]) => {
-                const weaponSlot = document.createElement('div');
-                weaponSlot.className = `weapon-slot ${isUnlocked ? 'unlocked' : 'locked'} ${this.playerShip.currentWeapon === weaponType ? 'active' : ''}`;
-                weaponSlot.innerHTML = `
-                    <div class="weapon-icon">${WEAPONS[weaponType].icon || '⚔️'}</div>
-                    <div class="weapon-name">${WEAPONS[weaponType].name}</div>
-                    ${!isUnlocked ? `<div class="weapon-price">${WEAPONS[weaponType].price} кредитов</div>` : ''}
-                `;
-
-                if (isUnlocked) {
-                    weaponSlot.addEventListener('click', () => {
-                        this.playerShip.currentWeapon = weaponType;
-                        this.updateUI();
-                        this.showNotification(`Выбрано оружие: ${WEAPONS[weaponType].name}`);
-                    });
-                }
-
-                weaponsInventory.appendChild(weaponSlot);
-            });
-
-            weaponsContainer.appendChild(weaponsInventory);
-        }
-
-        // Обновляем информацию о перезарядке
-        const cooldownElement = document.getElementById('cooldown');
-        if (cooldownElement) {
-            const selectedWeapon = this.playerShip.currentWeapon;
-            if (selectedWeapon && this.playerShip.weapons[selectedWeapon]) {
-                const lastShotTime = this.playerShip.lastShotTime[selectedWeapon] || 0;
-                const cooldown = WEAPONS[selectedWeapon].cooldown;
-                const now = Date.now();
-                const remainingTime = Math.max(0, cooldown - (now - lastShotTime));
-                
-                if (remainingTime > 0) {
-                    cooldownElement.textContent = `Перезарядка: ${Math.ceil(remainingTime / 1000)}с`;
-                } else {
-                    cooldownElement.textContent = 'Готово к стрельбе';
-                }
-            } else {
-                cooldownElement.textContent = 'Оружие не выбрано';
-            }
+        // Обновление информации об оружии
+        const weaponsElement = document.getElementById('weapons');
+        if (weaponsElement && this.playerShip && this.playerShip.weapons) {
+            const weapons = this.playerShip.weapons;
+            weaponsElement.innerHTML = `
+                <div class="weapon-item ${weapons.laser ? 'active' : ''}">
+                    <span class="weapon-name">Лазер</span>
+                    <span class="weapon-status">${weapons.laser ? 'Установлен' : 'Не установлен'}</span>
+                </div>
+                <div class="weapon-item ${weapons.bombs ? 'active' : ''}">
+                    <span class="weapon-name">Бомбы</span>
+                    <span class="weapon-status">${weapons.bombs ? 'Установлен' : 'Не установлен'}</span>
+                </div>
+                <div class="weapon-item ${weapons.missile ? 'active' : ''}">
+                    <span class="weapon-name">Ракеты</span>
+                    <span class="weapon-status">${weapons.missile ? 'Установлен' : 'Не установлен'}</span>
+                </div>
+            `;
         }
     }
 
