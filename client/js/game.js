@@ -1,65 +1,17 @@
 import NetworkManager from './network.js';
 class Game {
     constructor(initialState) {
-        this.explosions = []; // Инициализируем массив взрывов
-        
-        // Добавляем свойство для отслеживания планеты добычи
-        this.lastResourcePlanet = null;
-
-        this.isPageVisible = true;
-        
-        // Добавляем обработчик видимости страницы
-        document.addEventListener('visibilitychange', () => {
-            this.isPageVisible = !document.hidden;
-        });
-
+        // Инициализация канваса
         this.canvas = document.getElementById('gameCanvas');
-        if (!this.canvas) {
-            console.error('Canvas not found!');
-            return;
-        }
         this.ctx = this.canvas.getContext('2d');
         
-        // Показываем игровой контейнер
-        const gameContainer = document.getElementById('gameContainer');
-        if (gameContainer) {
-            gameContainer.style.display = 'block';
-        }
-
-        // Инициализация мини-карты
-        this.minimap = {
-            canvas: document.getElementById('minimapCanvas'),
-            scale: 0.02, // 2% от размера мира
-            size: 150 // размер в пикселях
-        };
-
-        if (this.minimap.canvas) {
-            this.minimap.ctx = this.minimap.canvas.getContext('2d');
-            this.minimap.canvas.width = this.minimap.size;
-            this.minimap.canvas.height = this.minimap.size;
-        } else {
-            console.error('Minimap canvas not found!');
-        }
-
-        // Устанавливаем размеры canvas
-        this.resizeCanvas();
-        window.addEventListener('resize', () => this.resizeCanvas());
-
-        // Размер игрового мира
+        // Размеры игрового мира
         this.worldSize = {
-            width: 9600,  // 8 секторов по 1200 пикселей
-            height: 9600
+            width: 10000,
+            height: 10000
         };
-
-        // Viewport (камера)
-        this.viewport = {
-            x: 0,
-            y: 0,
-            width: this.canvas.width,
-            height: this.canvas.height
-        };
-
-        // Инициализируем состояние игры
+        
+        // Инициализация состояния игры
         this.gameState = {
             players: new Map(),
             planets: new Map(),
@@ -68,131 +20,62 @@ class Game {
                 credits: initialState?.resources?.credits || 1000
             }
         };
-
+        
         // Инициализация корабля игрока
         this.playerShip = {
-            x: this.worldSize.width / 2,
-            y: this.worldSize.height / 2,
+            x: Math.random() * this.worldSize.width,
+            y: Math.random() * this.worldSize.height,
             rotation: 0,
             speed: 0,
-            maxSpeed: 5,
-            acceleration: 0.1,
-            deceleration: 0.05,
             shield: 100,
-            armor: 0,
-            immortalArmor: false,
+            armor: 100,
             energy: 100,
-            destroyed: false,
-            target: null,
             weapons: {
-                laser: false,
-                bombs: false,
-                missile: false
+                laser: true,
+                plasma: false,
+                missile: false,
+                railgun: false
             },
-            currentWeapon: null,
+            currentWeapon: 'laser',
+            lastShotTime: {},
             cargoSlots: {
-                slot1: { unlocked: true, amount: 0 },
-                slot2: { unlocked: false, amount: 0 },
-                slot3: { unlocked: false, amount: 0 },
-                slot4: { unlocked: false, amount: 0 },
-                slot5: { unlocked: false, amount: 0 }
+                slot1: { unlocked: true, type: null, amount: 0 },
+                slot2: { unlocked: false, type: null, amount: 0 },
+                slot3: { unlocked: false, type: null, amount: 0 }
             },
-            maxCargoPerSlot: 100
+            destroyed: false
         };
 
-        // Инициализация управления
-        this.keys = {
-            w: false,
-            a: false,
-            s: false,
-            d: false
-        };
-
+        // Инициализация сетевого менеджера
+        this.network = new NetworkManager(this);
+        
+        // Инициализация планет
+        this.initPlanets();
+        
         // Инициализация ботов
         this.bots = [];
-
-        // Добавляем анимацию урона
+        
+        // Инициализация анимации урона
         this.damageAnimation = {
             active: false,
             startTime: 0,
             duration: 500
         };
-
-        // Добавляем элемент для уведомлений
-        this.notifications = {
-            container: document.createElement('div'),
-            timeout: 3000
-        };
-        this.notifications.container.className = 'notifications';
-        this.notifications.container.style.cssText = `
-            position: fixed;
-            bottom: 180px;
-            right: 10px;
-            width: 250px;
-            z-index: 1000;
-        `;
-        document.body.appendChild(this.notifications.container);
-
-        // Инициализация всех игровых систем
-        this.initPlanets();
+        
+        // Инициализация мини-карты
+        this.initMinimap();
+        
+        // Инициализация обработчиков событий
         this.setupEventListeners();
-        this.initGameSystems();
-
-        // Центрируем viewport на корабле
-        this.centerViewportOnShip();
-
-        // Запускаем игровой цикл
-        this.lastTime = 0;
-        requestAnimationFrame((timestamp) => this.gameLoop(timestamp));
-
-        // Отладочная информация
-        console.log('Game initialized:', {
-            worldSize: this.worldSize,
-            viewport: this.viewport,
-            playerShip: this.playerShip,
-            planetsCount: this.gameState.planets.size,
-            botsCount: this.bots.length,
-            minimapInitialized: !!this.minimap.ctx
-        });
-
-        // Инициализация сетевого менеджера
-        this.network = new NetworkManager(this);
         
-        // Показываем диалог ввода имени при первом запуске
-        if (!localStorage.getItem('playerName')) {
-            this.showNameDialog();
-        }
-
-        // Добавляем массив для хранения сообщений игроков
-        this.playerMessages = new Map();
+        // Запуск игрового цикла
+        this.lastTime = performance.now();
+        this.gameLoop();
         
-        // Добавляем поле для ввода чата
-        this.initChat();
-
-        // Добавляем обработчик для успешной покупки оружия
-        this.network.socket.on('weapon:purchased', (data) => {
-            console.log('Оружие куплено:', data);
-            this.playerShip.weapons[data.type] = true;
-            this.gameState.resources.credits = data.credits;
-            
-            // Автоматически выбираем купленное оружие
-            this.playerShip.currentWeapon = data.type;
-            
-            let weaponName = '';
-            switch(data.type) {
-                case 'laser': weaponName = 'Лазер'; break;
-                case 'bombs': weaponName = 'Бомбы'; break;
-                case 'missile': weaponName = 'Самонаводящаяся ракета'; break;
-            }
-            
-            this.showNotification(`${weaponName} успешно куплен!`);
-            this.updateUI();
-            this.showShopMenu(); // Обновляем меню магазина
-        });
-
-        // Добавляем обработчик для неудачной покупки
-        this.network.socket.on('purchase:failed', (data) => {
-            this.showNotification(data.message);
+        // Видимость страницы
+        this.isPageVisible = true;
+        document.addEventListener('visibilitychange', () => {
+            this.isPageVisible = !document.hidden;
         });
     }
 
